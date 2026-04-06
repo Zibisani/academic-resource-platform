@@ -100,7 +100,3 @@ GRANT ALL PRIVILEGES ON DATABASE academic_db TO postgres;
 4. Log into the Django Admin (`/admin`) using your superuser account and create some `Faculty`, `Course`, and `Module` instances so the upload forms can populate.
 5. Back on the Dashboard, click **Upload Resource**. Select the structures you just made and upload a file.
 6. Click into the Resource on the dashboard to view it, add a review, and see the Ranking score change instantly.
-=======
-# academic-resource-platform
-A community-driven academic resource platform that allows students to search, upload and download academic resources
->>>>>>> 0d347454ec48c7000ca90262e867ba2701c4edfd
