@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import ResourceCard from '../components/ResourceCard';
+import { ArrowLeft, Inbox } from 'lucide-react';
 
 const MyUploads = () => {
     const { api, user } = useAuth();
@@ -24,15 +25,29 @@ const MyUploads = () => {
         return () => { isMounted = false; };
     }, [api]);
 
+    const handleDeleteResource = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this resource? It will be hidden (soft delete) and cannot be restored.")) return;
+        try {
+            await api.delete(`resources/${id}/`);
+            setResources(prev => prev.filter(r => r.id !== id));
+        } catch (err) {
+            console.error("Failed to delete resource", err);
+            alert("Failed to delete resource.");
+        }
+    };
+
     return (
-        <div className="bg-gray-50 min-h-screen py-10 px-4 md:px-8">
-            <div className="max-w-4xl mx-auto">
+        <div className="bg-background min-h-screen py-10 px-4 md:px-8">
+            <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
                     <div>
-                        <Link to="/dashboard" className="text-sm text-blue-600 hover:underline mb-2 inline-block">&larr; Back to Dashboard</Link>
-                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">My Uploads</h1>
-                        <p className="text-gray-500 mt-1 flex items-center">
+                        <Link to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground inline-flex items-center mb-4 transition-colors">
+                            <ArrowLeft className="w-4 h-4 mr-1.5" />
+                            Back to Dashboard
+                        </Link>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">My Uploads</h1>
+                        <p className="text-muted-foreground mt-1 text-sm">
                             Manage the materials you've contributed to the community.
                         </p>
                     </div>
@@ -40,25 +55,25 @@ const MyUploads = () => {
 
                 {/* Content */}
                 {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {[1, 2, 3, 4].map(i => <div key={i} className="h-48 bg-gray-200 rounded-xl animate-pulse"></div>)}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3, 4].map(i => <div key={i} className="h-48 bg-muted rounded-xl border border-border shadow-sm animate-pulse"></div>)}
                     </div>
                 ) : resources.length === 0 ? (
-                    <div className="bg-white border border-dashed border-gray-300 rounded-xl p-12 text-center text-gray-500 shadow-sm">
-                        <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">No uploads yet</h3>
-                        <p className="mb-6">You haven't contributed any academic resources yet.</p>
-                        <Link to="/upload" className="bg-blue-600 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition font-medium">
+                    <div className="bg-card border border-dashed border-border rounded-xl p-16 flex flex-col items-center justify-center text-center shadow-sm">
+                        <div className="bg-muted p-4 rounded-full mb-4">
+                            <Inbox className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-foreground mb-2 tracking-tight">No uploads yet</h3>
+                        <p className="text-muted-foreground mb-8 max-w-sm">You haven't contributed any academic resources to the library yet. Start sharing!</p>
+                        <Link to="/upload" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-8 py-2 shadow">
                             Upload your first resource
                         </Link>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {resources.map(res => (
-                            <div key={res.id} className="flex">
-                                <div className="w-full">
-                                    <ResourceCard resource={res} />
-                                </div>
+                            <div key={res.id} className="h-full">
+                                <ResourceCard resource={res} onDelete={() => handleDeleteResource(res.id)} />
                             </div>
                         ))}
                     </div>

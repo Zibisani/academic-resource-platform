@@ -5,6 +5,10 @@ from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from resources.models import AuditLog
+from .permissions import IsAdmin, IsStudent, IsOwnerOrAdmin
 from resources.models import (
     Faculty, Programme, Course, 
     Resource, Rating, Review, Engagement
@@ -34,10 +38,25 @@ class UserViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return super().get_permissions()
 
+    @method_decorator(ratelimit(key='ip', rate='5/h', method='POST', block=True))
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def dispatch(self, request, *args, **kwargs):
         if request.method.lower() == 'post' or request.method.lower() == 'options':
             self.authentication_classes = []
         return super().dispatch(request, *args, **kwargs)
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete your own reviews.")
+        instance.delete()
 
 # --- Academic Structure Views ---
 
@@ -75,6 +94,30 @@ class CourseViewSet(viewsets.ModelViewSet):
 # --- Core Resource Views ---
 
 class ResourceViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsOwnerOrAdmin]
+
+    def get_permissions(self):
+        if self.action in ['trending', 'recent', 'top_rated', 'recommended', 'staff_picks']:
+            return [permissions.AllowAny()]
+        if self.action in ['rate', 'download', 'reviews']:
+            return [permissions.IsAuthenticated()]
+        return super().get_permissions()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role == 'admin' and instance.uploader != self.request.user:
+            AuditLog.objects.create(
+                admin=self.request.user,
+                action='resource_removed',
+                target_type='Resource',
+                target_id=str(instance.id),
+                details=f"Admin removed resource: {instance.title}"
+            )
+            instance.delete()
+        else:
+            # Student soft delete
+            instance.status = Resource.STATUS_REMOVED
+            instance.save()
+
     def get_queryset(self):
         queryset = Resource.objects.filter(status=Resource.STATUS_ACTIVE)
         

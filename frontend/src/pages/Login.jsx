@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { LogIn } from 'lucide-react';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -21,54 +22,74 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 p-10 bg-white rounded-xl shadow-lg border border-gray-100">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-blue-900">
-                        Sign in to your account
-                    </h2>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 sm:p-8">
+            
+            <div className="w-full max-w-sm bg-card text-card-foreground border border-border rounded-xl shadow-sm overflow-hidden flex flex-col relative">
+                <div className="px-6 pb-4 pt-8 flex flex-col space-y-1.5 px-6">
+                    <h3 className="font-semibold tracking-tight text-2xl text-center">Login</h3>
+                    <p className="text-sm text-muted-foreground text-center">
+                        Enter your university email below to login to your account
+                    </p>
                 </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    {error && <div className="text-red-500 text-sm text-center">{error}</div>}
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        <div>
+                
+                <div className="p-6 pt-0">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && (
+                            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md border border-destructive/20 font-medium">
+                                {error}
+                            </div>
+                        )}
+                        
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="email">
+                                Email
+                            </label>
                             <input
-                                name="email"
+                                id="email"
                                 type="email"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="University Email address (@ub.ac.bw)"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Student@ub.ac.bw"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
-                        <div>
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="password">
+                                    Password
+                                </label>
+                            </div>
                             <input
-                                name="password"
+                                id="password"
                                 type="password"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="Password"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                         </div>
-                    </div>
-                    <div>
+                        
                         <button
                             type="submit"
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full mt-2"
                         >
-                            Sign in
+                            <LogIn className="mr-2 h-4 w-4" />
+                            Sign In
                         </button>
-                    </div>
-                    <div className="text-center mt-4">
-                        <Link to="/register" className="text-sm text-blue-600 hover:text-blue-500">
-                            Don't have an account? Register here.
+                    </form>
+                    
+                    <div className="mt-4 text-center text-sm">
+                        Don't have an account?{" "}
+                        <Link to="/register" className="underline underline-offset-4 hover:text-primary transition-colors">
+                            Sign up
                         </Link>
                     </div>
-                </form>
+                </div>
             </div>
+            
         </div>
     );
 };

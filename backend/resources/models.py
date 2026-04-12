@@ -49,6 +49,37 @@ class Course(models.Model):
         return f'[{self.code}] {self.name}'
 
 
+class Module(models.Model):
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name='modules'
+    )
+    name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, unique=True)
+    order_index = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'modules'
+        ordering = ['order_index', 'code']
+
+    def __str__(self):
+        return self.name
+
+
+class Topic(models.Model):
+    module = models.ForeignKey(
+        Module, on_delete=models.CASCADE, related_name='topics'
+    )
+    name = models.CharField(max_length=255)
+    order_index = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'topics'
+        ordering = ['order_index', 'name']
+
+    def __str__(self):
+        return self.name
+
+
 
 class Tag(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -88,6 +119,9 @@ class Resource(models.Model):
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name='resources'
     )
+    module = models.ForeignKey(
+        Module, on_delete=models.SET_NULL, null=True, blank=True, related_name='resources'
+    )
 
     uploader = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -97,6 +131,16 @@ class Resource(models.Model):
     )
     upload_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+
+    # Admin properties
+    is_staff_pick = models.BooleanField(default=False)
+    staff_pick_added_at = models.DateTimeField(null=True, blank=True)
+    staff_pick_added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='staff_picked_resources'
+    )
 
     # Cached counters — incremented in application logic, never computed on read
     view_count = models.PositiveIntegerField(default=0)

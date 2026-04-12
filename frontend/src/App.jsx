@@ -3,10 +3,24 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import HomePage from './pages/HomePage';
 import Dashboard from './pages/Dashboard';
 import ResourceDetail from './pages/ResourceDetail';
 import UploadResource from './pages/UploadResource';
 import MyUploads from './pages/MyUploads';
+
+// Admin imports
+import AdminLayout from './components/admin/AdminLayout';
+import AdminRoute from './components/admin/AdminRoute';
+import AdminLogin from './pages/admin/Login';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminResources from './pages/admin/Resources';
+import AdminReports from './pages/admin/Reports';
+import AdminHierarchy from './pages/admin/Hierarchy';
+import AdminWeights from './pages/admin/Weights';
+import AdminAnalytics from './pages/admin/Analytics';
+import AdminAuditLog from './pages/admin/AuditLog';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -20,9 +34,27 @@ const AppRoutes = () => {
     return (
         <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<Login />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/admin-portal/login" element={<AdminLogin />} />
             
+            {/* Admin Routes */}
+            <Route path="/admin-portal" element={
+                <AdminRoute>
+                    <AdminLayout />
+                </AdminRoute>
+            }>
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="resources" element={<AdminResources />} />
+                <Route path="reports" element={<AdminReports />} />
+                <Route path="hierarchy" element={<AdminHierarchy />} />
+                <Route path="weights" element={<AdminWeights />} />
+                <Route path="analytics" element={<AdminAnalytics />} />
+                <Route path="audit-log" element={<AdminAuditLog />} />
+            </Route>
+
             {/* Protected Routes */}
             <Route path="/dashboard" element={
                 <ProtectedRoute>

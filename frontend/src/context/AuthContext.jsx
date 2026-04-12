@@ -3,16 +3,40 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
+const parseJwt = (token) => {
+    try {
+        return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+        return null;
+    }
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token') || null);
+    const [token, setToken] = useState(null); // Memory only! No localStorage.
     const [loading, setLoading] = useState(true);
 
     const api = axios.create({
-        baseURL: 'http://localhost:8000/api/', // Default for local dev
+        baseURL: 'http://localhost:8000/api/',
+        withCredentials: true, // Send HttpOnly cookies for CSRF and Refresh Tokens
+        xsrfCookieName: 'csrftoken',
+        xsrfHeaderName: 'X-CSRFToken',
     });
 
-    // Add interceptor to attach token
+    let isRefreshing = false;
+    let failedQueue = [];
+
+    const processQueue = (error, token = null) => {
+        failedQueue.forEach(prom => {
+            if (error) {
+                prom.reject(error);
+            } else {
+                prom.resolve(token);
+            }
+        });
+        failedQueue = [];
+    };
+
     api.interceptors.request.use((config) => {
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -20,23 +44,87 @@ export const AuthProvider = ({ children }) => {
         return config;
     });
 
-    useEffect(() => {
-        // Decode JWT or fetch user profile on load if token exists
-        // Simplification for this implementation demo
-        if (token) {
-            setUser({ isAuthenticated: true });
+    api.interceptors.response.use(
+        (response) => response,
+        async (error) => {
+            const originalRequest = error.config;
+            
+            if (error.response && error.response.status === 401 && !originalRequest._retry) {
+                if (originalRequest.url.includes('auth/token/refresh/')) {
+                    // Refresh token itself expired or is invalid
+                    setToken(null);
+                    setUser(null);
+                    return Promise.reject(error);
+                }
+
+                if (isRefreshing) {
+                    return new Promise(function(resolve, reject) {
+                        failedQueue.push({ resolve, reject });
+                    }).then(token => {
+                        originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                        return api(originalRequest);
+                    }).catch(err => {
+                        return Promise.reject(err);
+                    });
+                }
+
+                originalRequest._retry = true;
+                isRefreshing = true;
+
+                try {
+                    const response = await api.post('auth/token/refresh/');
+                    const newAccessToken = response.data.access;
+                    setToken(newAccessToken);
+                    const parsed = parseJwt(newAccessToken) || {};
+                    setUser(prev => ({ ...prev, ...parsed, isAuthenticated: true }));
+                    
+                    processQueue(null, newAccessToken);
+                    originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
+                    return api(originalRequest);
+                } catch (err) {
+                    processQueue(err, null);
+                    setToken(null);
+                    setUser(null);
+                    return Promise.reject(err);
+                } finally {
+                    isRefreshing = false;
+                }
+            }
+            return Promise.reject(error);
         }
-        setLoading(false);
-    }, [token]);
+    );
+
+    useEffect(() => {
+        const attemptRestoreBaseSession = async () => {
+            try {
+                // Without a token, try silent refresh boot strap
+                const res = await api.post('auth/token/refresh/');
+                if (res.data.access) {
+                    setToken(res.data.access);
+                    const parsed = parseJwt(res.data.access) || {};
+                    setUser({ ...parsed, isAuthenticated: true });
+                }
+            } catch (err) {
+                console.log("No active session found.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (!token && loading) {
+            attemptRestoreBaseSession();
+        } else {
+            setLoading(false);
+        }
+    }, [token, loading]);
 
     const login = async (email, password) => {
         try {
-            const response = await api.post('token/', { email, password });
-            const { access, refresh } = response.data;
-            localStorage.setItem('token', access);
-            localStorage.setItem('refreshToken', refresh);
+            const response = await api.post('auth/token/', { email, password });
+            const { access } = response.data; // refresh token resides exclusively in the browser's HttpOnly cookie vault
             setToken(access);
-            setUser({ email, isAuthenticated: true });
+            const parsed = parseJwt(access) || {};
+            setUser({ email, ...parsed, isAuthenticated: true });
             return true;
         } catch (error) {
             console.error("Login completely failed", error);
@@ -59,13 +147,15 @@ export const AuthProvider = ({ children }) => {
             return await login(email, password);
         } catch (error) {
             console.error("Registration failed", error);
-            return false;
+            // Re-throw or capture to display detailed form errors
+            throw error; 
         }
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
+    const logout = async () => {
+        try {
+            await api.post('auth/logout/');
+        } catch (err) { }
         setToken(null);
         setUser(null);
     };

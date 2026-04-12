@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { LogOut, UploadCloud, FolderDot, User as UserIcon, BookOpen } from 'lucide-react';
 import PersonalisedFeed from '../components/PersonalisedFeed';
 import BrowsePanel from '../components/BrowsePanel';
 
@@ -8,6 +9,7 @@ const Dashboard = () => {
     const { user, api, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('feed'); 
+    const [searchParams, setSearchParams] = useState(null);
 
     const handleLogout = () => {
         logout();
@@ -15,56 +17,83 @@ const Dashboard = () => {
     }; 
 
     return (
-        <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
-            {/* Native Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm z-30 relative shrink-0">
-                <div className="flex items-center">
-                    <h1 className="text-xl font-extrabold text-blue-700 tracking-tight tracking-wider uppercase">Hub</h1>
-                </div>
-                <div className="flex items-center space-x-5">
-                    <span className="text-sm text-gray-600 hidden md:inline-block">Welcome, <span className="font-semibold text-gray-800">{user?.first_name || user?.email}</span></span>
+        <div className="min-h-screen flex flex-col bg-background font-sans text-foreground">
+            {/* Native Header (Shadcn Navbar Equivalent) */}
+            <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                <div className="container flex h-16 max-w-7xl mx-auto items-center justify-between px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-primary/10 p-2 rounded-lg">
+                            <BookOpen className="h-6 w-6 text-primary" />
+                        </div>
+                        <h1 className="text-xl font-bold tracking-tight hidden sm:inline-block">AcademicHub</h1>
+                    </div>
                     
-                    <Link to="/my-uploads" className="text-[11px] font-bold text-gray-500 hover:text-blue-600 transition tracking-widest uppercase">
-                        My Uploads
-                    </Link>
-                    
-                    <Link to="/upload" className="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 transition font-medium text-sm shadow-sm flex items-center">
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                        Upload
-                    </Link>
-                    <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-600 font-bold transition cursor-pointer uppercase tracking-wider text-xs">
-                        Logout
-                    </button>
+                    <div className="flex items-center space-x-2 md:space-x-4">
+                        <div className="hidden md:flex items-center text-sm mr-2 py-1 px-3 bg-muted rounded-full text-muted-foreground font-medium">
+                            <UserIcon className="w-4 h-4 mr-2 opacity-70" />
+                            {user?.first_name || user?.email}
+                        </div>
+                        
+                        <Link to="/my-uploads" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 border border-border shadow-sm bg-background">
+                            <FolderDot className="w-4 h-4 mr-2 text-primary" />
+                            <span className="hidden sm:inline">My Uploads</span>
+                        </Link>
+                        
+                        <Link to="/upload" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+                            <UploadCloud className="w-4 h-4 mr-2" />
+                            <span>Upload</span>
+                        </Link>
+                        
+                        <div className="w-px h-6 bg-border mx-1"></div>
+
+                        <button onClick={handleLogout} className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 hover:text-destructive h-9 w-9 md:px-3 md:w-auto text-muted-foreground">
+                            <LogOut className="w-4 h-4 md:mr-2" />
+                            <span className="hidden md:inline font-bold">Logout</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
-            
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden mt-0">
-                {/* Mobile Tab Navigation */}
-                <div className="md:hidden flex border-b border-gray-200 bg-white shadow-sm z-20 flex-shrink-0">
+            </header>
+
+            {/* Mobile Tab Navigation */}
+            <div className="md:hidden sticky top-16 z-40 bg-card/95 backdrop-blur border-b border-border/50">
+                <div className="flex p-1 w-full bg-muted/30">
                     <button 
                         onClick={() => setActiveTab('feed')}
-                        className={`flex-1 py-3 text-sm font-extrabold tracking-wide text-center uppercase transition-colors ${activeTab === 'feed' ? 'text-blue-700 border-b-2 border-blue-600 bg-blue-50/70' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                        className={`flex-1 flex justify-center items-center py-2.5 text-xs font-semibold tracking-wide uppercase transition-all rounded-md ${activeTab === 'feed' ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
                     >
                         My Feed
                     </button>
                     <button 
                         onClick={() => setActiveTab('browse')}
-                        className={`flex-1 py-3 text-sm font-extrabold tracking-wide text-center uppercase transition-colors ${activeTab === 'browse' ? 'text-blue-700 border-b-2 border-blue-600 bg-blue-50/70' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                        className={`flex-1 flex justify-center items-center py-2.5 text-xs font-semibold tracking-wide uppercase transition-all rounded-md ${activeTab === 'browse' ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
                     >
-                        Browse & Search
+                        Browse
                     </button>
                 </div>
-
-                {/* Zone 1: Personalised Feed */}
-                <div className={`${activeTab !== 'feed' ? 'hidden md:block' : 'block'} flex-grow md:w-2/3 lg:w-3/4 h-full relative bg-white`}>
-                    <PersonalisedFeed api={api} user={user} />
-                </div>
-
-                {/* Zone 2: Browse and Search Panel */}
-                <div className={`${activeTab !== 'browse' ? 'hidden md:block' : 'block'} w-full md:w-1/3 lg:w-1/4 h-full bg-gray-50 shadow-inner md:shadow-none z-10 md:border-l border-gray-200 flex-shrink-0`}>
-                    <BrowsePanel api={api} />
-                </div>
             </div>
+            
+            {/* Main Content Matrices */}
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8 overflow-visible">
+                <div className="flex gap-6 relative items-start">
+                    
+                    {/* Zone 1: Personalised Feed */}
+                    <div className={`${activeTab !== 'feed' ? 'hidden md:block' : 'block'} flex-1 min-w-0 pb-10`}>
+                        <PersonalisedFeed api={api} user={user} searchParams={searchParams} clearSearch={() => setSearchParams(null)} />
+                    </div>
+
+                    {/* Zone 2: Browse and Search Panel */}
+                    <div className={`${activeTab !== 'browse' ? 'hidden md:block' : 'block'} w-full md:w-80 lg:w-96 shrink-0`}>
+                        <div className="md:sticky md:top-24 pb-10">
+                            <BrowsePanel 
+                                api={api} 
+                                onSearch={(query) => { setSearchParams({ query }); setActiveTab('feed'); }}
+                                onCourseSelect={(courseId, courseName) => { setSearchParams({ courseId, courseName }); setActiveTab('feed'); }}
+                            />
+                        </div>
+                    </div>
+                    
+                </div>
+            </main>
         </div>
     );
 };

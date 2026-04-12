@@ -1,192 +1,206 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { UserPlus } from 'lucide-react';
 
 const Register = () => {
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirm, setConfirm] = useState('');
-    const [yearOfStudy, setYearOfStudy] = useState('');
-    const [error, setError] = useState('');
+    const [formData, setFormData] = useState({
+        email: '', password: '', confirmPassword: '', first_name: '', last_name: '', 
+        year_of_study: '', faculty: '', programme: '', courses: []
+    });
     
+    // Supporting data
     const [faculties, setFaculties] = useState([]);
     const [programmes, setProgrammes] = useState([]);
     const [courses, setCourses] = useState([]);
-
-    const [selectedFaculty, setSelectedFaculty] = useState('');
-    const [selectedProgramme, setSelectedProgramme] = useState('');
-    const [selectedCourses, setSelectedCourses] = useState([]);
-
+    
+    const [error, setError] = useState('');
     const { register, api } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        axios.get('http://localhost:8000/api/faculties/')
-            .then(res => setFaculties(res.data.results || res.data || []))
-            .catch(console.error);
-    }, []);
+        api.get('faculties/').then(res => setFaculties(res.data.results || res.data || [])).catch(console.error);
+    }, [api]);
 
     useEffect(() => {
-        if (selectedFaculty) {
-            axios.get(`http://localhost:8000/api/programmes/?faculty_id=${selectedFaculty}`)
-                .then(res => setProgrammes(res.data.results || res.data || []))
-                .catch(console.error);
+        if (formData.faculty) {
+            api.get(`programmes/?faculty_id=${formData.faculty}`).then(res => setProgrammes(res.data.results || res.data || [])).catch(console.error);
         } else {
             setProgrammes([]);
         }
-    }, [selectedFaculty]);
+        setFormData(prev => ({...prev, programme: '', courses: []}));
+    }, [formData.faculty, api]);
 
     useEffect(() => {
-        if (selectedProgramme) {
-            axios.get(`http://localhost:8000/api/courses/?programme_id=${selectedProgramme}`)
-                .then(res => setCourses(res.data.results || res.data || []))
-                .catch(console.error);
+        if (formData.programme) {
+            api.get(`courses/?programme_id=${formData.programme}`).then(res => setCourses(res.data.results || res.data || [])).catch(console.error);
         } else {
             setCourses([]);
         }
-    }, [selectedProgramme]);
+        setFormData(prev => ({...prev, courses: []}));
+    }, [formData.programme, api]);
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleCourseChange = (e) => {
+        const value = parseInt(e.target.value);
+        if (e.target.checked) {
+            // Add course to array
+            setFormData({ ...formData, courses: [...formData.courses, value] });
+        } else {
+            // Remove course from array
+            setFormData({ ...formData, courses: formData.courses.filter(id => id !== value) });
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-
-        if (password !== confirm) {
-            setError("Passwords don't match.");
-            return;
+        
+        if (formData.password !== formData.confirmPassword) {
+            return setError("Passwords do not match.");
+        }
+        if (formData.courses.length === 0) {
+            return setError("Please select at least one course.");
         }
 
-        if (!email.toLowerCase().endsWith('@ub.ac.bw')) {
-            setError("You must use a valid university email (@ub.ac.bw)");
-            return;
-        }
-
-        const success = await register(email, password, firstName, lastName, yearOfStudy, selectedFaculty, selectedProgramme, selectedCourses);
+        const success = await register(
+            formData.email,
+            formData.password,
+            formData.first_name,
+            formData.last_name,
+            formData.year_of_study,
+            formData.faculty,
+            formData.programme,
+            formData.courses
+        );
         if (success) {
             navigate('/dashboard');
         } else {
-            setError('Registration failed. Try again.');
+            setError('Registration failed. Please check your inputs and try again.');
         }
     };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8 p-10 bg-white rounded-xl shadow-lg border border-gray-100">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-blue-900">
-                        Create an account
-                    </h2>
-                </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    {error && <div className="text-red-500 text-sm text-center">{error}</div>}
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        <div>
-                            <input
-                                name="firstName"
-                                type="text"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="First Name"
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <input
-                                name="lastName"
-                                type="text"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="Last Name"
-                                value={lastName}
-                                onChange={(e) => setLastName(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <input
-                                name="email"
-                                type="email"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="University Email address (@ub.ac.bw)"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <input
-                                name="password"
-                                type="password"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <input
-                                name="confirm"
-                                type="password"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="Confirm Password"
-                                value={confirm}
-                                onChange={(e) => setConfirm(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <h3 className="text-sm font-medium text-gray-700">Academic Information</h3>
-                        <select required value={yearOfStudy} onChange={(e) => setYearOfStudy(e.target.value)} className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                            <option value="">Select Year of Study</option>
-                            <option value="1">Year 1</option>
-                            <option value="2">Year 2</option>
-                            <option value="3">Year 3</option>
-                            <option value="4">Year 4</option>
-                            <option value="5">Year 5 (or higher)</option>
-                        </select>
-                        <select required value={selectedFaculty} onChange={(e) => {
-                            setSelectedFaculty(e.target.value);
-                            setSelectedProgramme('');
-                            setSelectedCourses([]);
-                        }} className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm">
-                            <option value="">Select Faculty</option>
-                            {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                        </select>
-                        <select required value={selectedProgramme} onChange={(e) => {
-                            setSelectedProgramme(e.target.value);
-                            setSelectedCourses([]);
-                        }} disabled={!selectedFaculty} className="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 sm:text-sm">
-                            <option value="">Select Programme</option>
-                            {programmes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <select multiple required value={selectedCourses} onChange={(e) => {
-                            const values = Array.from(e.target.selectedOptions, option => option.value);
-                            setSelectedCourses(values);
-                        }} disabled={!selectedProgramme} className="relative block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 sm:text-sm h-32">
-                            {courses.map(c => <option key={c.id} value={c.id} className="p-1">[{c.code}] {c.name}</option>)}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple courses.</p>
-                    </div>
+    const InputDesign = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
-                    <div>
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background py-10 px-4 sm:px-6 lg:px-8">
+            <div className="w-full max-w-lg bg-card text-card-foreground border border-border rounded-xl shadow-sm overflow-hidden flex flex-col relative">
+                
+                <div className="px-6 pb-4 pt-8 flex flex-col space-y-1.5 text-center">
+                    <h3 className="font-semibold tracking-tight text-2xl">Create an account</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Enter your information to join the academic network
+                    </p>
+                </div>
+
+                <div className="p-6 pt-0">
+                    <form className="space-y-5" onSubmit={handleSubmit}>
+                        {error && (
+                            <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md border border-destructive/20 font-medium">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">First Name</label>
+                                <input name="first_name" type="text" required className={InputDesign} placeholder="John" onChange={handleChange} />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Last Name</label>
+                                <input name="last_name" type="text" required className={InputDesign} placeholder="Doe" onChange={handleChange} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">University Email</label>
+                            <input name="email" type="email" required className={InputDesign} placeholder="john.doe@ub.ac.bw" onChange={handleChange} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
+                                <input name="password" type="password" required className={InputDesign} placeholder="••••••••" onChange={handleChange} />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Confirm Password</label>
+                                <input name="confirmPassword" type="password" required className={InputDesign} placeholder="••••••••" onChange={handleChange} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t border-border">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Year of Study</label>
+                                    <select name="year_of_study" required className={InputDesign} onChange={handleChange} value={formData.year_of_study}>
+                                        <option value="" disabled>Select Year</option>
+                                        {[1,2,3,4,5,6].map(y => <option key={y} value={y}>Year {y}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Faculty</label>
+                                    <select name="faculty" required className={InputDesign} onChange={handleChange} value={formData.faculty}>
+                                        <option value="" disabled>Select Faculty</option>
+                                        {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none">Programme</label>
+                                <select name="programme" required disabled={!formData.faculty} className={InputDesign} onChange={handleChange} value={formData.programme}>
+                                    <option value="" disabled>Select Programme</option>
+                                    {programmes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="space-y-2 pt-2">
+                                <label className="text-sm font-medium leading-none">Enrolled Courses (Select multiple)</label>
+                                <div className="h-32 overflow-y-auto border border-input rounded-md bg-transparent p-2 space-y-1 mt-1">
+                                    {!formData.programme ? (
+                                        <span className="text-sm text-muted-foreground p-2">Select a programme first.</span>
+                                    ) : courses.length === 0 ? (
+                                        <span className="text-sm text-muted-foreground p-2">No courses found.</span>
+                                    ) : (
+                                        courses.map(c => (
+                                            <div key={c.id} className="flex items-center space-x-2 p-1.5 hover:bg-muted rounded">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id={`course-${c.id}`} 
+                                                    value={c.id} 
+                                                    onChange={handleCourseChange}
+                                                    checked={formData.courses.includes(c.id)}
+                                                    className="h-4 w-4 rounded border-primary text-primary shadow focus:ring-1 focus:ring-ring"
+                                                />
+                                                <label htmlFor={`course-${c.id}`} className="text-sm cursor-pointer select-none">
+                                                    <span className="font-semibold">{c.code}</span> - {c.name}
+                                                </label>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         <button
                             type="submit"
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full mt-4"
                         >
-                            Register
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Complete Registration
                         </button>
-                    </div>
-                    <div className="text-center mt-4">
-                        <Link to="/" className="text-sm text-gray-600 hover:text-gray-900">
-                            Already have an account? Sign in.
+                    </form>
+
+                    <div className="mt-5 text-center text-sm">
+                        Already have an account?{" "}
+                        <Link to="/" className="underline underline-offset-4 hover:text-primary transition-colors">
+                            Sign in
                         </Link>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

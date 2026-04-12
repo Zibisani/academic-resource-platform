@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Missing Django uploads
+media/
+frontend/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

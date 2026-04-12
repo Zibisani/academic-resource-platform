@@ -12,6 +12,12 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'year_of_study', 'role', 'is_verified_contributor', 'date_joined', 'faculty', 'programme', 'courses')
         read_only_fields = ('id', 'is_verified_contributor', 'date_joined', 'role')
 
+    def validate_email(self, value):
+        domain = value.split('@')[-1].lower()
+        if domain != 'ub.ac.bw':
+            raise serializers.ValidationError('Registration requires a valid university email address (@ub.ac.bw).')
+        return value
+
     def create(self, validated_data):
         courses = validated_data.pop('courses', [])
         user = User.objects.create_user(
@@ -115,6 +121,32 @@ class ResourceDetailSerializer(serializers.ModelSerializer):
         model = Resource
         fields = '__all__'
         read_only_fields = ('uploader', 'upload_date', 'cached_score', 'status', 'view_count', 'download_count', 'average_rating', 'rating_count', 'last_engagement_at', 'score_updated_at')
+
+    def validate_file_url(self, file):
+        import magic
+        import uuid
+        import os
+
+        ALLOWED_MIME_TYPES = {
+            'application/pdf', 'image/jpeg', 'image/png',
+            'image/gif', 'image/webp'
+        }
+        
+        # Read the first 2048 bytes to identify file type definitively
+        file_header = file.read(2048)
+        file.seek(0)
+        
+        mime = magic.from_buffer(file_header, mime=True)
+        if mime not in ALLOWED_MIME_TYPES:
+            raise serializers.ValidationError(f'File type {mime} is not allowed.')
+        
+        # Obfuscate uploaded name to prevent IDOR scanning and execution
+        ext = os.path.splitext(file.name)[1]
+        file.name = f"{uuid.uuid4()}{ext}"
+        
+        # Note: In a complete implementation, original filename would be saved to FileMetadata post-save
+        
+        return file
 
 
 class EngagementSerializer(serializers.ModelSerializer):

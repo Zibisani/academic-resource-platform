@@ -1,161 +1,226 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Upload, ArrowLeft } from 'lucide-react';
 
 const UploadResource = () => {
-    const { api } = useAuth();
+    const { api, user } = useAuth();
     const navigate = useNavigate();
-    
-    // Form state
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [resourceType, setResourceType] = useState('notes');
-    const [file, setFile] = useState(null);
-    const [videoLink, setVideoLink] = useState('');
 
-    // Hierarchy state
-    const [faculties, setFaculties] = useState([]);
+    // Data lists for dropdowns
     const [programmes, setProgrammes] = useState([]);
     const [courses, setCourses] = useState([]);
+    const [modules, setModules] = useState([]); // Kept for legacy support or if you have modules
 
-    // Selections
-    const [selectedFaculty, setSelectedFaculty] = useState('');
-    const [selectedProgramme, setSelectedProgramme] = useState('');
-    const [selectedCourse, setSelectedCourse] = useState('');
+    const [formData, setFormData] = useState({
+        title: '',
+        description: '',
+        resource_type: '',
+        file: null,
+        url: '',
+        programme: '',
+        course: '',
+        module: ''
+    });
+
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
-        // Load initial faculties
-        api.get('faculties/').then(res => setFaculties(res.data.results || res.data || [])).catch(console.error);
+        api.get('programmes/').then(res => setProgrammes(res.data.results || res.data || [])).catch(console.error);
     }, [api]);
 
-    // Cascading dropdowns
     useEffect(() => {
-        if (selectedFaculty) {
-            api.get(`programmes/?faculty_id=${selectedFaculty}`).then(res => setProgrammes(res.data.results || res.data || []));
-        } else {
-            setProgrammes([]);
-        }
-    }, [selectedFaculty, api]);
+        if (formData.programme) {
+            api.get(`courses/?programme_id=${formData.programme}`).then(res => setCourses(res.data.results || res.data || [])).catch(console.error);
+        } else { setCourses([]); }
+    }, [formData.programme, api]);
 
     useEffect(() => {
-        if (selectedProgramme) {
-            api.get(`courses/?programme_id=${selectedProgramme}`).then(res => setCourses(res.data.results || res.data || []));
-        } else {
-            setCourses([]);
-        }
-    }, [selectedProgramme, api]);
+        if (formData.course) {
+            api.get(`modules/?course_id=${formData.course}`).then(res => setModules(res.data.results || res.data || [])).catch(console.error);
+        } else { setModules([]); }
+    }, [formData.course, api]);
 
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-
+    const handleFileChange = (e) => {
+        setFormData({ ...formData, file: e.target.files[0] });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('description', description);
-        formData.append('resource_type', resourceType);
-        
-        if (selectedCourse) formData.append('course_id', selectedCourse);
+        setError('');
+        setSuccess('');
+        setIsUploading(true);
 
-        if (file) {
-            formData.append('file_url', file);
-        }
-        if (videoLink) {
-            formData.append('video_link', videoLink);
+        const data = new FormData();
+        data.append('title', formData.title);
+        data.append('description', formData.description);
+        data.append('resource_type', formData.resource_type);
+        if (formData.programme) data.append('programme', formData.programme);
+        if (formData.course) data.append('course_id', formData.course);
+        
+        if (formData.resource_type === 'video') {
+            if (!formData.url) {
+                setError("Please provide a valid YouTube/Vimeo URL.");
+                setIsUploading(false); return;
+            }
+            data.append('video_link', formData.url);
+        } else {
+            if (!formData.file) {
+                setError("Please select a file to upload.");
+                setIsUploading(false); return;
+            }
+            data.append('file_url', formData.file);
         }
 
         try {
-            await api.post('resources/', formData, {
+            await api.post('resources/', data, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            navigate('/dashboard');
-        } catch (error) {
-            console.error('Upload failed', error);
-            alert('Upload failed. Check console.');
+            setSuccess("Resource uploaded successfully! Proceeding back to dashboard...");
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 1500);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to upload resource. Ensure all required fields are filled.");
         }
+        setIsUploading(false);
     };
 
+    const InputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
     return (
-        <div className="max-w-3xl mx-auto py-8 px-4">
-            <h1 className="text-3xl font-bold mb-8 text-blue-900 border-b pb-4">Contribute a Resource</h1>
-            <form onSubmit={handleSubmit} className="bg-white p-8 shadow rounded-lg border border-gray-100">
+        <div className="min-h-screen bg-background py-10 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl mx-auto">
                 
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">1. Basic Details</h2>
-                <div className="space-y-4 mb-8 pl-4 border-l-2 border-blue-100">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                        <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea required value={description} onChange={(e) => setDescription(e.target.value)} rows="3" className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    </div>
-                </div>
+                <Link to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground inline-flex items-center mb-6 transition-colors">
+                    <ArrowLeft className="w-4 h-4 mr-1.5" />
+                    Back to Dashboard
+                </Link>
 
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">2. Academic Categorization</h2>
-                <div className="grid grid-cols-2 gap-4 mb-8 pl-4 border-l-2 border-blue-100">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Faculty (Required)</label>
-                        <select required value={selectedFaculty} onChange={(e) => {
-                            setSelectedFaculty(e.target.value);
-                            setSelectedProgramme('');
-                            setSelectedCourse('');
-                        }} className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select Faculty</option>
-                            {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Programme (Required)</label>
-                        <select required value={selectedProgramme} onChange={(e) => {
-                            setSelectedProgramme(e.target.value);
-                            setSelectedCourse('');
-                        }} disabled={!selectedFaculty} className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500 bg-gray-50 disabled:bg-gray-200">
-                            <option value="">Select Programme</option>
-                            {programmes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Course (Required)</label>
-                        <select required value={selectedCourse} onChange={(e) => {
-                            setSelectedCourse(e.target.value);
-                        }} disabled={!selectedProgramme} className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500 bg-gray-50 disabled:bg-gray-200">
-                            <option value="">Select Course</option>
-                            {courses.map(c => <option key={c.id} value={c.id}>[{c.code}] {c.name}</option>)}
-                        </select>
-                    </div>
-                </div>
-
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">3. Resource File/Link</h2>
-                <div className="space-y-4 mb-8 pl-4 border-l-2 border-blue-100">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
-                        <select value={resourceType} onChange={(e) => setResourceType(e.target.value)} className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500">
-                            <option value="notes">Notes (PDF)</option>
-                            <option value="past_exam">Past Exam (PDF)</option>
-                            <option value="textbook">Textbook (PDF)</option>
-                            <option value="image">Image</option>
-                            <option value="video">Video Link</option>
-                        </select>
-                    </div>
-                    
-                    {resourceType === 'video' ? (
+                <div className="bg-card text-card-foreground border border-border shadow-sm rounded-xl overflow-hidden">
+                    <div className="border-b border-border p-6 flex items-center justify-between">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Video Link (URL)</label>
-                            <input type="url" required value={videoLink} onChange={(e) => setVideoLink(e.target.value)} className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500" placeholder="https://youtube.com/..." />
+                            <h2 className="text-2xl font-semibold tracking-tight">Upload Resource</h2>
+                            <p className="text-sm text-muted-foreground mt-1">Share materials to help your peers and earn trust in the academic network.</p>
                         </div>
-                    ) : (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">File Upload</label>
-                            <input type="file" required onChange={(e) => setFile(e.target.files[0])} accept={resourceType === 'image' ? 'image/*' : '.pdf'} className="w-full border p-2 rounded" />
+                        <div className="hidden sm:block p-3 bg-primary/10 rounded-full">
+                            <Upload className="w-6 h-6 text-primary" />
                         </div>
-                    )}
-                </div>
+                    </div>
 
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition-colors text-lg shadow-sm">
-                    Upload Resource
-                </button>
-            </form>
+                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                        {error && <div className="bg-destructive/15 border border-destructive/20 text-destructive text-sm p-4 rounded-md font-medium">{error}</div>}
+                        {success && <div className="bg-success/15 border border-success/20 text-success text-sm p-4 rounded-md font-medium">{success}</div>}
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">General Information</h3>
+                            
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none">Title</label>
+                                <input
+                                    name="title"
+                                    type="text"
+                                    required
+                                    className={InputClass}
+                                    placeholder="e.g., Intro to Machine Learning Finals 2025"
+                                    onChange={handleChange}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium leading-none">Description (Optional)</label>
+                                <textarea
+                                    name="description"
+                                    rows="3"
+                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="What does this resource cover?"
+                                    onChange={handleChange}
+                                ></textarea>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border pb-1">Academic Context</h3>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Programme Context</label>
+                                    <select name="programme" required className={InputClass} onChange={handleChange} value={formData.programme}>
+                                        <option value="" disabled>Select Programme</option>
+                                        {programmes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Course Target</label>
+                                    <select name="course" required className={InputClass} onChange={handleChange} value={formData.course} disabled={!formData.programme}>
+                                        <option value="" disabled>Select Course</option>
+                                        {courses.map(c => <option key={c.id} value={c.id}>[{c.code}] {c.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border pb-1">File Upload</h3>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Resource Type</label>
+                                    <select name="resource_type" required className={InputClass} onChange={handleChange} value={formData.resource_type}>
+                                        <option value="" disabled>Select Type...</option>
+                                        <option value="past_exam">Past Exam Paper</option>
+                                        <option value="notes">Lecture Notes</option>
+                                        <option value="textbook">Textbook / Document</option>
+                                        <option value="video">Video Link</option>
+                                        <option value="image">Diagram / Image</option>
+                                    </select>
+                                </div>
+
+                                {formData.resource_type === 'video' ? (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium leading-none">Video URL</label>
+                                        <input
+                                            name="url"
+                                            type="url"
+                                            required
+                                            className={InputClass}
+                                            placeholder="https://youtube.com/watch?v=..."
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium leading-none">Upload File</label>
+                                        <input
+                                            name="file"
+                                            type="file"
+                                            required
+                                            className={`${InputClass} file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer p-1 items-center h-11`}
+                                            onChange={handleFileChange}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-border flex justify-end">
+                            <button
+                                type="submit"
+                                disabled={isUploading}
+                                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-8 py-2 w-full sm:w-auto shadow"
+                            >
+                                {isUploading ? 'Uploading & Processing...' : 'Finalize & Submit'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     );
 };
