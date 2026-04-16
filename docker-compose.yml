@@ -1,40 +1,53 @@
-version: '3.8'
-
 services:
+
   db:
-    image: postgres:15-alpine
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file: .env
     environment:
-      POSTGRES_DB: academic_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     ports:
-      - "5432:5432"
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
 
   backend:
-    build: ./backend
-    command: >
-      sh -c "python manage.py makemigrations api &&
-             python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn backend.wsgi:application --bind 0.0.0.0:8000"
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file: .env
     volumes:
       - ./backend:/app
-    environment:
-      - DB_HOST=db
-      - DJANGO_DEBUG=True
+      - media_files:/app/media
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
-      - "80:80"
+      - "5173:5173"
     depends_on:
       - backend
 
 volumes:
-  postgres_data:
+  mysql_data:
+  media_files:

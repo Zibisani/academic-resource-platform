@@ -1,53 +1,55 @@
-<<<<<<< HEAD
 # Community-Driven Academic Resource Ranking and Recommendation System
 
-This project is a full-stack academic resource platform built with **Django 4.2**, **Django REST Framework**, **React 18**, and **PostgreSQL**.
+This project is a full-stack academic resource platform built with **Django 5.1**, **Django REST Framework**, **React 18 (Vite)**, and **MySQL 8.0**.
 
 ## Features Included
-- **User Authentication**: JWT-based login, registration with university Email (`.edu`) validation. Access controls and generic Role mapping (`student`, `admin`).
+- **User Authentication**: JWT-based login (HTTPOnly cookies), registration with university Email (`.edu`) validation. Access controls and generic Role mapping (`student`, `admin`).
+- **Admin Portal**: Fully functional dashboard for managing users, tracking analytical metrics, and moderating resource content.
 - **Academic Structure Hierarchy**: Faculty → Programme → Course → Module → Topic relationships.
-- **Resource Upload**: Support for PDF documents, Image files, and Video Links.
-- **Rating & Reviews**: One rating/review allowed per user, per resource. 
+- **Resource Upload**: Support for PDF documents, Image files, and Video Links. Secured with server-side MIME-type payload validation.
+- **Rating & Reviews**: One rating/review allowed per user, per resource. Student-initiated self-deletion included.
 - **Recommendation & Ranking Engine**: Dynamic weighted calculation `(score = rating*0.4 + count*0.2 + views*0.1 + recency*0.2 + verified*0.1)` on every view/rating.
 - **Trending Dashboards**: Top recommended resources mapped by modules or global engagement tracking.
 
 ---
 
-## 🚀 How to Run - Docker (Recommended for Production/Demonstration)
+## 🚀 How to Run - Docker (Recommended for All Users)
 
-The absolute easiest way to spin up the entire application (Database, Backend API, Frontend React App) is using the included `docker-compose`.
+The absolute easiest way to spin up the entire application (MySQL Database, Django Backend API, React Frontend App) is using the included `docker-compose.yml` file.
 
 ### Prerequisites
-- Docker Engine & Docker Compose installed.
+- Docker Desktop (or Docker Engine & Docker Compose plugins) installed and running on your system.
 
 ### Steps
-1. Open a terminal in the root `academic_resources` folder (where `docker-compose.yml` is).
-2. Run the build and detach:
+1. Open a terminal in the root `academic_resources` folder (where `docker-compose.yml` is located).
+2. Run the compose build command:
    ```bash
-   docker-compose up -d --build
+   docker compose up --build
    ```
-3. That's it! Docker will pull Postgres, install Python dependencies, build the React app via Node, and start Gunicorn + Nginx.
-   - Frontend is mapped exclusively to Nginx: `http://localhost:80` (or just `http://localhost`)
-   - Backend API is proxied through Nginx: `http://localhost/api/` (Django runs internally on `8000`)
-   - Django Admin: `http://localhost/api/admin/`
+3. That's it! Docker will automatically handle building the isolated environments. It pulls MySQL, correctly provisions your database schemas, builds standard Python dependencies locally, and caches node modules.
+
+**Access Points:**
+- **Frontend App**: [http://localhost:5173](http://localhost:5173) (Your main point of interaction, features hot-reloading)
+- **Backend API**: [http://localhost:8000](http://localhost:8000) (Django runs silently in the background)
+- **Admin App Portal**: [http://localhost:5173/admin-portal](http://localhost:5173/admin-portal)
+
+To shut everything down cleanly, press `CTRL + C` in the running terminal, or execute `docker compose down`. Wait for the network containers to fully drop before closing Docker Desktop.
 
 ---
 
-## 🛠 How to Run - Local Development
+## 🛠 How to Run - Traditional Local Development (Without Docker)
 
-If you prefer running the servers natively for development, follow these steps.
+If you prefer running the servers natively for development without containers.
 
 ### Prerequisites
 - Python 3.10+
-- Node.js (v18+)
-- PostgreSQL installed and running locally.
+- Node.js (v20+)
+- Local MySQL instance running (e.g. XAMPP)
 
 ### 1. Database Setup
-Create a PostgreSQL database matching the settings:
+Ensure you have a local MySQL root user set up, or change `.env` to match your credentials:
 ```sql
 CREATE DATABASE academic_db;
-CREATE USER postgres WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE academic_db TO postgres;
 ```
 
 ### 2. Backend Setup (Django)
@@ -66,15 +68,10 @@ GRANT ALL PRIVILEGES ON DATABASE academic_db TO postgres;
    ```
 4. Run migrations:
    ```bash
-   python manage.py makemigrations api
+   python manage.py makemigrations 
    python manage.py migrate
    ```
-5. Create a superuser (Admin):
-   ```bash
-   python manage.py createsuperuser
-   # Follow prompts. Ensure you use an email.
-   ```
-6. Start the server:
+5. Start the server:
    ```bash
    python manage.py runserver
    ```
@@ -84,19 +81,10 @@ GRANT ALL PRIVILEGES ON DATABASE academic_db TO postgres;
 1. Open a *new* terminal and navigate to the `frontend/` directory.
 2. Install Node dependencies:
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    ```
 3. Start the Vite development server:
    ```bash
    npm run dev
    ```
-*(The frontend runs on `http://localhost:5173` typically. It is pre-configured to use `http://localhost:8000/api/` as its backend proxy).*
-
-
-## Testing the System
-1. Go to the frontend URL.
-2. **Register** a new account (Wait to see error if you don't use `.edu` email. E.g., Use `student@test.edu`).
-3. You will be redirected to the **Dashboard**.
-4. Log into the Django Admin (`/admin`) using your superuser account and create some `Faculty`, `Course`, and `Module` instances so the upload forms can populate.
-5. Back on the Dashboard, click **Upload Resource**. Select the structures you just made and upload a file.
-6. Click into the Resource on the dashboard to view it, add a review, and see the Ranking score change instantly.
+*(The frontend runs on `http://localhost:5173`. It is pre-configured to proxy `/api` calls directly to Django)*
