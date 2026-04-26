@@ -33,7 +33,6 @@ def set_refresh_cookie(response, refresh_token):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-    @method_decorator(ratelimit(key='ip', rate='10/15m', method='POST', block=True))
     def post(self, request, *args, **kwargs):
         get_token(request) # Ensure CSRF cookie is set
         response = super().post(request, *args, **kwargs)
@@ -49,9 +48,12 @@ class CustomTokenRefreshView(TokenRefreshView):
         if not refresh_token:
             return Response({'detail': 'Refresh token missing'}, status=status.HTTP_401_UNAUTHORIZED)
         
-        request.data._mutable = True
-        request.data['refresh'] = refresh_token
-        request.data._mutable = False
+        # request.data might be a dict or a QueryDict depending on parser
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data['refresh'] = refresh_token
+        
+        # We need to temporarily replace request._full_data so the serializer sees it
+        request._full_data = data
             
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
@@ -91,8 +93,21 @@ class PasswordResetRequestView(views.APIView):
                 token_hash=token_hash,
                 expires_at=timezone.now() + timedelta(minutes=30)
             )
-            # Send email with raw_token... Log output for demo
-            print(f"Password reset link: /reset-password?token={raw_token}&email={user.email}")
+            
+            # Send email via MailHog
+            from django.core.mail import send_mail
+            import os
+            
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+            reset_link = f"{frontend_url}/reset-password?token={raw_token}&email={user.email}"
+            
+            send_mail(
+                subject='AcademicHub - Password Reset Request',
+                message=f'Hello {user.first_name},\n\nYou requested a password reset for your AcademicHub account. Please click the link below to set a new password:\n\n{reset_link}\n\nIf you did not request this, please ignore this email.\n\nRegards,\nThe AcademicHub Team',
+                from_email=os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@academic-resources.test'),
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
             
         return Response({'detail': 'If the email exists, a reset link has been sent.'})
 

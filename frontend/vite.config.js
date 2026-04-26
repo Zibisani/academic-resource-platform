@@ -8,4 +8,23 @@ export default defineConfig({
     tailwindcss(),
     react()
   ],
+  server: {
+    watch: {
+      usePolling: true,
+    },
+    host: true,
+    proxy: {
+      // Proxy API requests to Django backend
+      '/api': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
+      // Proxy media file requests — allows iframes to load from same origin
+      // and avoids X-Frame-Options cross-origin block
+      '/media': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
+    }
+  }
 })

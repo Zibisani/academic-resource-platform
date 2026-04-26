@@ -8,6 +8,9 @@ urlpatterns = [
     path('api/', include('api.urls')),
 ]
 
+# Always serve media in dev (Vite proxies /media/ to backend on port 8000)
+# In production, a proper web server (nginx) handles media files.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

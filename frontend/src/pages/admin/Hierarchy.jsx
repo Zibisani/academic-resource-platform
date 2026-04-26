@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { FolderTree, Trash2, Plus, GripVertical, AlertCircle } from 'lucide-react';
+import { FolderTree, Trash2, Plus, GripVertical, AlertCircle, X } from 'lucide-react';
 
 const AdminHierarchy = () => {
     const { api } = useAuth();
     const [tab, setTab] = useState('faculty');
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    
+    // Modal state
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [formData, setFormData] = useState({ name: '', code: '', parent_id: '' });
+    const [parents, setParents] = useState([]);
+    const [modalError, setModalError] = useState('');
 
     const endpoints = {
         'faculty': 'admin/faculty/',
@@ -57,16 +63,55 @@ const AdminHierarchy = () => {
         }
     };
 
+    const handleOpenAddModal = async () => {
+        setFormData({ name: '', code: '', parent_id: '' });
+        setModalError('');
+        setParents([]);
+        
+        // Fetch parents if needed
+        try {
+            if (tab === 'programme') {
+                const res = await api.get('admin/faculty/');
+                setParents(res.data.results || res.data);
+            } else if (tab === 'course') {
+                const res = await api.get('admin/programme/');
+                setParents(res.data.results || res.data);
+            } else if (tab === 'module') {
+                const res = await api.get('admin/course/');
+                setParents(res.data.results || res.data);
+            }
+            setIsAddModalOpen(true);
+        } catch (err) {
+            alert('Failed to load parent data for dropdowns.');
+        }
+    };
+
+    const handleAddSubmit = async (e) => {
+        e.preventDefault();
+        setModalError('');
+        
+        try {
+            const payload = { ...formData };
+            // Map parent_id to the correct API field
+            if (tab === 'programme') payload.faculty = payload.parent_id;
+            if (tab === 'course') payload.programme = payload.parent_id;
+            if (tab === 'module') payload.course = payload.parent_id;
+            delete payload.parent_id;
+
+            await api.post(endpoints[tab], payload);
+            setIsAddModalOpen(false);
+            fetchHierarchy();
+        } catch (err) {
+            console.error(err);
+            setModalError('Failed to add item. Check required fields or name uniqueness.');
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Academic Hierarchy</h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage faculties, programmes, courses, and modules.</p>
-            </div>
-
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl flex gap-3 text-amber-800 dark:text-amber-300">
-                <AlertCircle className="shrink-0" />
-                <p className="text-sm">Modification features (add/edit/drag-reorder) are simplified here for boilerplate reasons. Deletion correctly demonstrates the cascade counting backend requirement.</p>
             </div>
 
             {/* Tabs */}
@@ -141,10 +186,80 @@ const AdminHierarchy = () => {
                 </table>
             </div>
             
-            <button className="flex items-center justify-center w-full py-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors">
+            <button 
+                onClick={handleOpenAddModal}
+                className="flex items-center justify-center w-full py-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors"
+            >
                 <Plus size={20} className="mr-2" />
                 Add New {tab}
             </button>
+
+            {/* Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white capitalize">Add New {tab}</h3>
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
+                            {modalError && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">{modalError}</div>}
+                            
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Name <span className="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    className="w-full text-sm border border-slate-300 dark:border-slate-700 rounded-md p-2.5 bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    placeholder={`E.g. ${tab === 'faculty' ? 'Faculty of Science' : 'Software Engineering'}`}
+                                />
+                            </div>
+
+                            {(tab === 'course' || tab === 'module') && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Code <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.code}
+                                        onChange={(e) => setFormData({...formData, code: e.target.value})}
+                                        className="w-full text-sm border border-slate-300 dark:border-slate-700 rounded-md p-2.5 bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="E.g. CSI101"
+                                    />
+                                </div>
+                            )}
+
+                            {tab !== 'faculty' && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Parent Assignment <span className="text-red-500">*</span></label>
+                                    <select
+                                        required
+                                        value={formData.parent_id}
+                                        onChange={(e) => setFormData({...formData, parent_id: e.target.value})}
+                                        className="w-full text-sm border border-slate-300 dark:border-slate-700 rounded-md p-2.5 bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    >
+                                        <option value="" disabled>Select {tab === 'programme' ? 'Faculty' : tab === 'course' ? 'Programme' : 'Course'}</option>
+                                        {parents.map(p => (
+                                            <option key={p.id} value={p.id}>{p.code ? `[${p.code}] ` : ''}{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="pt-2">
+                                <button type="submit" className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-md transition-colors flex items-center">
+                                    <Plus size={18} className="mr-2" />
+                                    Confirm Addition
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

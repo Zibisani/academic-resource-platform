@@ -4,8 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, UploadCloud, FolderDot, User as UserIcon, BookOpen } from 'lucide-react';
 import PersonalisedFeed from '../components/PersonalisedFeed';
 import BrowsePanel from '../components/BrowsePanel';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 const Dashboard = () => {
+    useDocumentTitle('Dashboard');
     const { user, api, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('feed'); 

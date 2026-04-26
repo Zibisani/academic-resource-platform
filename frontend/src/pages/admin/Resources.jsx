@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Search, Filter, Trash2, Star, Eye, MoreVertical, FileText, Video, Image as ImageIcon, BookOpen } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Star, Eye, Trash2, FileText, Video, Image as ImageIcon, BookOpen, UploadCloud } from 'lucide-react';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import { ResourceViewModal } from './ResourceModal';
+import { ResourceUploadModal } from './ResourceUploadModal';
 
 const AdminResources = () => {
+    useDocumentTitle('Resource Management');
     const { api } = useAuth();
     const [resources, setResources] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -11,6 +14,8 @@ const AdminResources = () => {
     const [filterStatus, setFilterStatus] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterStaffPick, setFilterStaffPick] = useState('');
+    const [viewResource, setViewResource] = useState(null);
+    const [showUpload, setShowUpload] = useState(false);
 
     const fetchResources = async () => {
         setLoading(true);
@@ -78,9 +83,17 @@ const AdminResources = () => {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Resource Management</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Moderate, curate, and delete uploaded academic materials.</p>
+            <div className="flex items-start justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Resource Management</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Moderate, curate, and delete uploaded academic materials.</p>
+                </div>
+                <button
+                    onClick={() => setShowUpload(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                    <UploadCloud size={16} /> Upload Resource
+                </button>
             </div>
 
             {/* Filters */}
@@ -163,10 +176,13 @@ const AdminResources = () => {
                                                     {getTypeIcon(resource.resource_type)}
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm border-b border-transparent hover:border-indigo-500 inline-block font-medium text-slate-900 dark:text-white truncate max-w-xs">{resource.title}</div>
+                                                    <button onClick={() => setViewResource(resource)} className="text-sm border-b border-transparent hover:border-indigo-500 inline-block font-medium text-slate-900 dark:text-white truncate max-w-xs text-left cursor-pointer bg-transparent p-0">
+                                                        {resource.title}
+                                                    </button>
                                                     <div className="text-xs text-slate-500 mt-0.5">{resource.module_name}</div>
                                                 </div>
                                             </div>
+
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                                             <div>{resource.uploader_name || 'Anonymous'}</div>
@@ -205,9 +221,9 @@ const AdminResources = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex justify-end gap-3 items-center">
-                                                <Link to={`/admin-portal/resources/${resource.id}`} className="text-slate-400 hover:text-indigo-600 transition-colors" title="View Detail">
+                                                <button onClick={() => setViewResource(resource)} className="text-slate-400 hover:text-indigo-600 transition-colors" title="View Detail">
                                                     <Eye size={18} />
-                                                </Link>
+                                                </button>
                                                 <button onClick={() => handleRemoveResource(resource)} className="text-slate-400 hover:text-red-600 transition-colors" title="Hard Delete">
                                                     <Trash2 size={18} />
                                                 </button>
@@ -220,6 +236,8 @@ const AdminResources = () => {
                     </table>
                 </div>
             </div>
+            <ResourceViewModal resource={viewResource} onClose={() => setViewResource(null)} api={api} />
+            <ResourceUploadModal isOpen={showUpload} onClose={() => setShowUpload(false)} api={api} onSuccess={fetchResources} />
         </div>
     );
 };

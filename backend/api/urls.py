@@ -6,7 +6,8 @@ from accounts.views import (
     PasswordResetRequestView, PasswordResetConfirmView
 )
 from .views import (
-    UserViewSet, FacultyViewSet, ProgrammeViewSet, CourseViewSet, ResourceViewSet, ReviewViewSet
+    UserViewSet, FacultyViewSet, ProgrammeViewSet, CourseViewSet, ResourceViewSet, ReviewViewSet,
+    VerifyEmailView
 )
 
 router = DefaultRouter()
@@ -21,6 +22,7 @@ router.register(r'reviews', ReviewViewSet, basename='reviews')
 
 
 urlpatterns = [
+    path('users/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
     path('', include(router.urls)),
     path('admin/', include('api.admin_urls')),
     

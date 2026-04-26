@@ -10,7 +10,6 @@ const UploadResource = () => {
     // Data lists for dropdowns
     const [programmes, setProgrammes] = useState([]);
     const [courses, setCourses] = useState([]);
-    const [modules, setModules] = useState([]); // Kept for legacy support or if you have modules
 
     const [formData, setFormData] = useState({
         title: '',
@@ -19,8 +18,7 @@ const UploadResource = () => {
         file: null,
         url: '',
         programme: '',
-        course: '',
-        module: ''
+        course: ''
     });
 
     const [error, setError] = useState('');
@@ -37,11 +35,6 @@ const UploadResource = () => {
         } else { setCourses([]); }
     }, [formData.programme, api]);
 
-    useEffect(() => {
-        if (formData.course) {
-            api.get(`modules/?course_id=${formData.course}`).then(res => setModules(res.data.results || res.data || [])).catch(console.error);
-        } else { setModules([]); }
-    }, [formData.course, api]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -77,6 +70,7 @@ const UploadResource = () => {
             }
             data.append('file_url', formData.file);
         }
+
 
         try {
             await api.post('resources/', data, {
@@ -135,9 +129,10 @@ const UploadResource = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none">Description (Optional)</label>
+                                <label className="text-sm font-medium leading-none">Description</label>
                                 <textarea
                                     name="description"
+                                    required
                                     rows="3"
                                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     placeholder="What does this resource cover?"

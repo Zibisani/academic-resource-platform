@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { FileText, Users, AlertTriangle, Download, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const AdminDashboard = () => {
+    useDocumentTitle('Admin Dashboard');
     const { api } = useAuth();
     const [stats, setStats] = useState(null);
     const [recentResources, setRecentResources] = useState([]);

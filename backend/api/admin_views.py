@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta
+from django.db import models
 from django.db.models import Count, Q, Avg, Sum
 from django.contrib.auth import get_user_model
 from resources.models import Resource, Rating, Review, Engagement, Report, Faculty, Programme, Course, Module, Topic, RankingWeight, AuditLog
@@ -42,11 +43,24 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         return AdminUserDetailSerializer
 
     def perform_create(self, serializer):
-        user = serializer.save()
+        user = serializer.save(is_email_verified=True, must_change_password=True)
         password = self.request.data.get('password')
         if password:
             user.set_password(password)
             user.save()
+            
+            # Send email to the user so they know their account exists
+            from django.core.mail import send_mail
+            import os
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+            send_mail(
+                'Welcome to AcademicHub',
+                f'Your account has been created by an administrator. Please log in at {frontend_url}/login with your email and this temporary password: {password}\nYou will be required to change it upon your first login.',
+                'noreply@academichub.edu',
+                [user.email],
+                fail_silently=False,
+            )
+            
         log_audit(self.request.user, 'user_created', 'User', user.id, f"Created {user.role} {user.email}")
 
     def perform_update(self, serializer):
@@ -56,12 +70,20 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         
         if old_verified != updated_user.is_verified_contributor:
             Resource.objects.filter(uploader=updated_user).update(score_updated_at=None)
+
+        if updated_user.status == User.STATUS_DISABLED and updated_user.is_active:
+            updated_user.is_active = False
+            updated_user.save(update_fields=['is_active'])
+        elif updated_user.status == User.STATUS_ACTIVE and not updated_user.is_active:
+            updated_user.is_active = True
+            updated_user.save(update_fields=['is_active'])
             
         log_audit(self.request.user, 'user_updated', 'User', user.id, "Updated fields")
 
     def perform_destroy(self, instance):
         instance.status = User.STATUS_DISABLED
-        instance.save()
+        instance.is_active = False
+        instance.save(update_fields=['status', 'is_active'])
         log_audit(self.request.user, 'user_deleted', 'User', instance.id, "Soft deleted user")
 
     @action(detail=True, methods=['post'], url_path='reset-password')
@@ -76,13 +98,25 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Temporary password set'})
         
         from accounts.models import PasswordResetToken
-        import hashlib, secrets
+        from django.core.mail import send_mail
+        import hashlib, secrets, os
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         PasswordResetToken.objects.create(
             user=user, token_hash=token_hash, expires_at=timezone.now() + timedelta(minutes=60)
         )
-        print(f"[Admin] Password reset link text generated: ?token={raw_token}&email={user.email}")
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        reset_link = f"{frontend_url}/reset-password?token={raw_token}&email={user.email}"
+        
+        send_mail(
+            'Password Reset - AcademicHub',
+            f'An administrator has requested a password reset for your account. Please click the link to reset it: {reset_link}\n\nIf you did not request this, please contact support.',
+            'noreply@academichub.edu',
+            [user.email],
+            fail_silently=False,
+        )
+        
+        print(f"[Admin] Password reset link text generated: {reset_link}")
         log_audit(request.user, 'password_reset_triggered', 'User', user.id, "Sent reset email link")
         return Response({'detail': 'Reset email sent'})
 

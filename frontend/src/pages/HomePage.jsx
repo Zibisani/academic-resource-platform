@@ -6,6 +6,7 @@ import {
   GraduationCap, Layers, Menu, X, CheckCircle, BookMarked,
   FlameKindling, Sparkles, BarChart3, Globe
 } from 'lucide-react';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 // ─── Static mock data for resource preview ────────────────────────────────────
 const FEATURED_RESOURCES = [
@@ -157,6 +158,7 @@ const AnimatedCounter = ({ target, suffix = '' }) => {
 
 // ─── Main HomePage component ──────────────────────────────────────────────────
 const HomePage = () => {
+  useDocumentTitle('Home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 

@@ -18,6 +18,20 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Registration requires a valid university email address (@ub.ac.bw).')
         return value
 
+    def validate_password(self, value):
+        import re
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long.")
+        if not re.search(r"[A-Z]", value):
+            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+        if not re.search(r"[a-z]", value):
+            raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+        if not re.search(r"\d", value):
+            raise serializers.ValidationError("Password must contain at least one number.")
+        if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]", value):
+            raise serializers.ValidationError("Password must contain at least one special character.")
+        return value
+
     def create(self, validated_data):
         courses = validated_data.pop('courses', [])
         user = User.objects.create_user(
@@ -30,6 +44,28 @@ class UserSerializer(serializers.ModelSerializer):
             programme=validated_data.get('programme')
         )
         user.courses.set(courses)
+        
+        # MAILHOG INTEGRATION: Send Verification Email Hook
+        try:
+            from django.core.mail import send_mail
+            from django.core.signing import TimestampSigner
+            
+            signer = TimestampSigner()
+            token = signer.sign(str(user.id))
+            
+            verification_url = f"http://localhost:5173/verify?id={user.id}&token={token}"
+            
+            send_mail(
+                subject='Welcome to AcademicHub! Verify your account.',
+                message=f'Hello {user.first_name},\n\nPlease click the following link to verify your university credentials:\n{verification_url}\n\nThanks,\nThe AcademicHub Team',
+                from_email='noreply@academic-resources.test',
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # We fail silently in development if SMTP isn't running, but log it
+            print(f"Failed to send email to {user.email}: {e}")
+            
         return user
 
 

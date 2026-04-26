@@ -11,17 +11,33 @@ const parseJwt = (token) => {
     }
 };
 
+const getCookie = (name) => {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null); // Memory only! No localStorage.
     const [loading, setLoading] = useState(true);
 
     const api = axios.create({
-        baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/',
+        baseURL: import.meta.env.VITE_API_BASE_URL || '/api/', // Use relative path to route through Vite proxy in dev
         withCredentials: true, // Send HttpOnly cookies for CSRF and Refresh Tokens
         xsrfCookieName: 'csrftoken',
         xsrfHeaderName: 'X-CSRFToken',
     });
+
 
     let isRefreshing = false;
     let failedQueue = [];
@@ -41,6 +57,10 @@ export const AuthProvider = ({ children }) => {
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        const csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            config.headers['X-CSRFToken'] = csrfToken;
+        }
         return config;
     });
 
@@ -50,8 +70,8 @@ export const AuthProvider = ({ children }) => {
             const originalRequest = error.config;
             
             if (error.response && error.response.status === 401 && !originalRequest._retry) {
-                if (originalRequest.url.includes('auth/token/refresh/')) {
-                    // Refresh token itself expired or is invalid
+                // If the failed request was a token generation or a token refresh, do NOT intercept it
+                if (originalRequest.url.includes('auth/token/refresh/') || originalRequest.url.endsWith('auth/token/')) {
                     setToken(null);
                     setUser(null);
                     return Promise.reject(error);
@@ -98,6 +118,9 @@ export const AuthProvider = ({ children }) => {
         const attemptRestoreBaseSession = async () => {
             try {
                 // Without a token, try silent refresh boot strap
+                // Allow some time for CSRF cookie to settle on cross-origin mounts
+                await new Promise(r => setTimeout(r, 50));
+                
                 const res = await api.post('auth/token/refresh/');
                 if (res.data.access) {
                     setToken(res.data.access);
@@ -128,7 +151,7 @@ export const AuthProvider = ({ children }) => {
             return true;
         } catch (error) {
             console.error("Login completely failed", error);
-            return false;
+            throw error;
         }
     };
 
@@ -144,7 +167,7 @@ export const AuthProvider = ({ children }) => {
                 programme, 
                 courses 
             });
-            return await login(email, password);
+            return true;
         } catch (error) {
             console.error("Registration failed", error);
             // Re-throw or capture to display detailed form errors

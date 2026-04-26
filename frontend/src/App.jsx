@@ -8,6 +8,9 @@ import Dashboard from './pages/Dashboard';
 import ResourceDetail from './pages/ResourceDetail';
 import UploadResource from './pages/UploadResource';
 import MyUploads from './pages/MyUploads';
+import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // Admin imports
 import AdminLayout from './components/admin/AdminLayout';
@@ -37,6 +40,9 @@ const AppRoutes = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify" element={<VerifyEmail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/admin-portal/login" element={<AdminLogin />} />
             
             {/* Admin Routes */}

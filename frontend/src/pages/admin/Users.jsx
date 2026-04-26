@@ -2,14 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Search, Filter, MoreVertical, Plus, UserX, UserCheck, Shield, Key } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import { UserViewModal, UserCreateModal } from './UserModals';
 
 const AdminUsers = () => {
+    useDocumentTitle('User Management');
     const { api } = useAuth();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [viewUser, setViewUser] = useState(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -45,6 +50,16 @@ const AdminUsers = () => {
         }
     };
 
+    const handleResetPassword = async (user) => {
+        if (!confirm(`Are you sure you want to send a password reset link to ${user.email}?`)) return;
+        try {
+            await api.post(`admin/users/${user.id}/reset-password/`);
+            alert('Password reset link sent to Mailhog!');
+        } catch (err) {
+            alert('Failed to send reset link.');
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -52,10 +67,10 @@ const AdminUsers = () => {
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">User Management</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage platform users, roles, and access.</p>
                 </div>
-                <Link to="/admin-portal/users/create" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">
+                <button onClick={() => setIsCreateModalOpen(true)} className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">
                     <Plus className="h-4 w-4 mr-2" />
                     Create User
-                </Link>
+                </button>
             </div>
 
             {/* Filters bar */}
@@ -162,12 +177,12 @@ const AdminUsers = () => {
                                                 <button onClick={() => handleToggleStatus(user)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" title={user.status === 'active' ? 'Disable User' : 'Enable User'}>
                                                     {user.status === 'active' ? <UserX size={18} /> : <UserCheck size={18} />}
                                                 </button>
-                                                <button className="text-slate-400 hover:text-indigo-600 transition-colors" title="Reset Password">
+                                                <button onClick={() => handleResetPassword(user)} className="text-slate-400 hover:text-indigo-600 transition-colors" title="Reset Password">
                                                     <Key size={18} />
                                                 </button>
-                                                <Link to={`/admin-portal/users/${user.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition-colors">
+                                                <button onClick={() => setViewUser(user)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition-colors">
                                                     View
-                                                </Link>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -183,6 +198,9 @@ const AdminUsers = () => {
                     </div>
                 </div>
             </div>
+            
+            <UserViewModal user={viewUser} onClose={() => setViewUser(null)} api={api} />
+            <UserCreateModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} api={api} onSuccess={fetchUsers} />
         </div>
     );
 };

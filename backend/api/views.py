@@ -38,9 +38,9 @@ class UserViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return super().get_permissions()
 
-    @method_decorator(ratelimit(key='ip', rate='5/h', method='POST', block=True))
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+
 
     def dispatch(self, request, *args, **kwargs):
         if request.method.lower() == 'post' or request.method.lower() == 'options':
@@ -142,6 +142,19 @@ class ResourceViewSet(viewsets.ModelViewSet):
             
         ordering = self.request.query_params.get('ordering', '-cached_score')
         return queryset.order_by(ordering)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def report(self, request, pk=None):
+        resource = self.get_object()
+        reason = request.data.get('reason', 'No reason provided')
+        from resources.models import Report
+        Report.objects.create(
+            resource=resource,
+            reporter=request.user,
+            reason=reason,
+            status=Report.STATUS_PENDING
+        )
+        return Response({"status": "Report submitted successfully"}, status=status.HTTP_201_CREATED)
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -249,13 +262,11 @@ class ResourceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def staff_picks(self, request):
-        """ Zone 1: Verified Contributors """
-        envelope = self._get_course_envelope(request)
+        """ Staff curated resources - shown across all courses """
         resources = Resource.objects.filter(
-            course__in=envelope, 
-            status=Resource.STATUS_ACTIVE, 
-            uploader__is_verified_contributor=True
-        ).order_by('-cached_score')[:8]
+            status=Resource.STATUS_ACTIVE,
+            is_staff_pick=True
+        ).order_by('-staff_pick_added_at', '-cached_score')[:20]
         serializer = ResourceListSerializer(resources, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -314,3 +325,38 @@ class ResourceViewSet(viewsets.ModelViewSet):
             action=Engagement.ACTION_DOWNLOAD
         )
         return Response({"status": "Download tracked"})
+
+from rest_framework.views import APIView
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+
+class VerifyEmailView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        token = request.data.get('token')
+        
+        if not user_id or not token:
+            return Response({"error": "Missing parameters"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            signer = TimestampSigner()
+            # Token expires after 7 days (604800 seconds)
+            verified_id = signer.unsign(token, max_age=604800)
+            
+            if str(verified_id) != str(user_id):
+                return Response({"error": "Invalid token for this user"}, status=status.HTTP_400_BAD_REQUEST)
+                
+            user = User.objects.get(id=user_id)
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified'])
+            
+            return Response({"status": "Email successfully verified. You can now log in."}, status=status.HTTP_200_OK)
+            
+        except SignatureExpired:
+            return Response({"error": "Verification link has expired"}, status=status.HTTP_400_BAD_REQUEST)
+        except BadSignature:
+            return Response({"error": "Invalid verification link"}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({"error": "User does not exist"}, status=status.HTTP_404_NOT_FOUND)

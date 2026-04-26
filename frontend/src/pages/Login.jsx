@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
+import useDocumentTitle from '../hooks/useDocumentTitle';
 
 const Login = () => {
+    useDocumentTitle('Login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -13,11 +15,13 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        const success = await login(email, password);
-        if (success) {
-            navigate('/dashboard');
-        } else {
-            setError('Login failed. Please check your credentials.');
+        try {
+            const success = await login(email, password);
+            if (success) {
+                navigate('/dashboard');
+            }
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
         }
     };
 
@@ -60,6 +64,9 @@ const Login = () => {
                                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="password">
                                     Password
                                 </label>
+                                <Link to="/forgot-password" className="ml-auto inline-block text-sm underline-offset-4 hover:underline text-muted-foreground hover:text-primary">
+                                    Forgot your password?
+                                </Link>
                             </div>
                             <input
                                 id="password"

@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AlertCircle, Trash2, CheckCircle, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import { ResourceViewModal } from './ResourceModal';
 
 const AdminReports = () => {
+    useDocumentTitle('Content Reports');
     const { api } = useAuth();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('pending');
+    const [viewResource, setViewResource] = useState(null);
 
     const fetchReports = async () => {
         setLoading(true);
@@ -114,7 +118,7 @@ const AdminReports = () => {
                                     </span>
                                 </div>
                                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                                    Resource: <Link to={`/admin-portal/resources/${report.resource_id}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">{report.resource_title}</Link>
+                                    Resource: <button onClick={() => setViewResource({id: report.resource_id, title: report.resource_title})} className="text-indigo-600 dark:text-indigo-400 hover:underline bg-transparent border-0 p-0 text-left cursor-pointer">{report.resource_title}</button>
                                 </h3>
                                 <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-100 dark:border-slate-700/50">
                                     <p className="text-sm text-slate-700 dark:text-slate-300 italic font-medium">"{report.reason}"</p>
@@ -149,6 +153,12 @@ const AdminReports = () => {
                     ))
                 )}
             </div>
+            
+            <ResourceViewModal 
+                resource={viewResource} 
+                onClose={() => setViewResource(null)} 
+                api={api} 
+            />
         </div>
     );
 };

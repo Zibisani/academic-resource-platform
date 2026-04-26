@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ResourceCard from './ResourceCard';
-import { ArrowUpRight, Clock, Star, Sparkles, Medal } from 'lucide-react';
+import { ArrowUpRight, Clock, Star, Sparkles, Medal, FileText } from 'lucide-react';
 
 const FeedSection = ({ title, icon, resources, colorClass }) => {
     return (
@@ -40,7 +40,8 @@ const PersonalisedFeed = ({ api, user, searchParams, clearSearch }) => {
         topRated: [],
         recent: [],
         recommended: [],
-        staffPicks: []
+        staffPicks: [],
+        allResources: []
     });
     const [loading, setLoading] = useState(true);
 
@@ -48,12 +49,13 @@ const PersonalisedFeed = ({ api, user, searchParams, clearSearch }) => {
         let isMounted = true;
         const fetchFeeds = async () => {
             try {
-                const [trending, topRated, recent, recommended, staffPicks] = await Promise.all([
+                const [trending, topRated, recent, recommended, staffPicks, allResources] = await Promise.all([
                     api.get('resources/trending/').catch(() => ({data: []})),
                     api.get('resources/top_rated/').catch(() => ({data: []})),
                     api.get('resources/recent/').catch(() => ({data: []})),
                     api.get('resources/recommended/').catch(() => ({data: []})),
-                    api.get('resources/staff_picks/').catch(() => ({data: []}))
+                    api.get('resources/staff_picks/').catch(() => ({data: []})),
+                    api.get('resources/').catch(() => ({data: []}))
                 ]);
                 
                 if (isMounted) {
@@ -62,7 +64,8 @@ const PersonalisedFeed = ({ api, user, searchParams, clearSearch }) => {
                         topRated: topRated.data.results || topRated.data || [],
                         recent: recent.data.results || recent.data || [],
                         recommended: recommended.data.results || recommended.data || [],
-                        staffPicks: staffPicks.data.results || staffPicks.data || []
+                        staffPicks: staffPicks.data.results || staffPicks.data || [],
+                        allResources: allResources.data.results || allResources.data || []
                     });
                     setLoading(false);
                 }
@@ -190,6 +193,12 @@ const PersonalisedFeed = ({ api, user, searchParams, clearSearch }) => {
                 icon={<Clock className="w-4 h-4 text-destructive" />} 
                 resources={feeds.recent} 
                 colorClass="ring-1 ring-destructive/20"
+            />
+            <FeedSection 
+                title="All Available Materials" 
+                icon={<FileText className="w-4 h-4 text-indigo-500" />} 
+                resources={feeds.allResources} 
+                colorClass="ring-1 ring-indigo-500/20"
             />
         </div>
     );

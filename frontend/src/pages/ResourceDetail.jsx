@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Star, Download, Calendar, User, FileText, CheckCircle2, MessageSquare, ArrowLeft, Layers, Video, Image as ImageIcon } from "lucide-react";
+import { Star, Download, Calendar, User, FileText, CheckCircle2, MessageSquare, ArrowLeft, AlertTriangle, Layers, Video, Image as ImageIcon } from "lucide-react";
 
 const typeLabels = {
     'past_exam': 'Past Paper',
@@ -10,6 +10,18 @@ const typeLabels = {
     'image': 'Image',
     'textbook': 'Textbook'
 };
+
+const resolveMediaUrl = (fileUrl) => {
+    if (!fileUrl) return null;
+    try {
+        const url = new URL(fileUrl);
+        return url.pathname;
+    } catch {
+        if (fileUrl.startsWith('/')) return fileUrl;
+        return `/media/${fileUrl}`;
+    }
+};
+
 
 const ResourceDetail = () => {
     const { id } = useParams();
@@ -31,6 +43,10 @@ const ResourceDetail = () => {
     const [loadingReviews, setLoadingReviews] = useState(false);
     const [newReview, setNewReview] = useState('');
     const [submittingReview, setSubmittingReview] = useState(false);
+
+    // Report state
+    const [isReporting, setIsReporting] = useState(false);
+    const [reportReason, setReportReason] = useState('');
 
     useEffect(() => {
         const fetchResource = async () => {
@@ -136,7 +152,13 @@ const ResourceDetail = () => {
             
             const url = resource.file_url || resource.file;
             if (url) {
-                window.open(url, '_blank');
+                // Force download using a hidden anchor tag
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = ''; 
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             } else if (resource.video_link) {
                 window.open(resource.video_link, '_blank');
             }
@@ -144,6 +166,20 @@ const ResourceDetail = () => {
              console.error("Failed to register download", error);
         }
     }
+
+    const handleReport = async (e) => {
+        e.preventDefault();
+        if (!reportReason.trim()) return;
+        try {
+            await api.post(`resources/${id}/report/`, { reason: reportReason });
+            alert("Resource reported successfully. Administrators will review it shortly.");
+            setIsReporting(false);
+            setReportReason('');
+        } catch (err) {
+            console.error(err);
+            alert("Failed to submit report. Please try again later.");
+        }
+    };
 
     const getRelativeTime = (dateString) => {
         if (!dateString) return "Unknown date";
@@ -169,7 +205,7 @@ const ResourceDetail = () => {
             )
         }
         
-        const fileUrl = resource.file_url || resource.file;
+        const fileUrl = resolveMediaUrl(resource.file_url || resource.file);
         if (fileUrl) {
             const isImage = resource.resource_type === 'image' || fileUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i);
             
@@ -258,6 +294,16 @@ const ResourceDetail = () => {
                         </div>
                         
                         <div className="shrink-0 flex items-center justify-end gap-2">
+                            {user && resource.uploader_email !== user.email && (
+                                <button 
+                                    onClick={() => setIsReporting(true)}
+                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none border border-border text-muted-foreground hover:bg-muted/50 h-11 px-4 shadow-sm"
+                                    title="Report Resource"
+                                >
+                                    <AlertTriangle className="w-4 h-4 mr-2" />
+                                    Report
+                                </button>
+                            )}
                             {user && resource.uploader_email === user.email && (
                                 <button 
                                     onClick={handleDeleteResource}
@@ -278,6 +324,47 @@ const ResourceDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Reporting Modal overlay */}
+            {isReporting && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+                    <div className="bg-card w-full max-w-md rounded-xl shadow-lg border border-border overflow-hidden">
+                        <div className="p-6 border-b border-border">
+                            <h3 className="text-lg font-semibold flex items-center text-foreground">
+                                <AlertTriangle className="w-5 h-5 mr-2 text-warning" />
+                                Report Resource
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">Why are you reporting this resource to administrators?</p>
+                        </div>
+                        <form onSubmit={handleReport} className="p-6">
+                            <textarea
+                                value={reportReason}
+                                onChange={(e) => setReportReason(e.target.value)}
+                                className="w-full text-sm border border-input rounded-md p-3 bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                                rows="4"
+                                placeholder="E.g. Inappropriate content, incorrect course assignment, spam..."
+                                required
+                            ></textarea>
+                            <div className="mt-6 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsReporting(false); setReportReason(''); }}
+                                    className="px-4 py-2 text-sm font-medium border border-input rounded-md hover:bg-muted/50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!reportReason.trim()}
+                                    className="px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                                >
+                                    Submit Report
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content split layout */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
